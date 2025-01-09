@@ -2,11 +2,15 @@ import React from 'react';
 
 const languages = [
   { code: 'en', name: 'English' },
+  // Indian Languages
+  { code: 'hi', name: 'Hindi' },
+  { code: 'kn', name: 'Kannada' },
+  { code: 'te', name: 'Telugu' },
+  // Other Languages
   { code: 'ar', name: 'Arabic' },
   { code: 'zh', name: 'Chinese' },
   { code: 'fr', name: 'French' },
   { code: 'de', name: 'German' },
-  { code: 'hi', name: 'Hindi' },
   { code: 'id', name: 'Indonesian' },
   { code: 'ga', name: 'Irish' },
   { code: 'it', name: 'Italian' },

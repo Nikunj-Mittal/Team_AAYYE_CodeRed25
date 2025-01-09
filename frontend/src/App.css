@@ -161,6 +161,19 @@ input[type="text"] {
   border: 1px solid #ddd;
   border-radius: 4px;
   font-size: 16px;
+  min-width: 250px;
+  max-width: 100%;
+  background-color: white;
+}
+
+.language-selector select option {
+  padding: 8px;
+  font-size: 14px;
+}
+
+[dir="rtl"] .language-selector select {
+  margin-left: 0;
+  margin-right: 10px;
 }
 
 .language-selector label {
@@ -269,4 +282,135 @@ input[type="text"] {
   color: #666;
   background: #f5f5f5;
   border-radius: 8px;
+}
+
+.refresh-button {
+  background-color: #4CAF50;
+  padding: 8px 16px;
+  border: none;
+  border-radius: 4px;
+  color: white;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin-left: auto;
+}
+
+.refresh-button:hover {
+  background-color: #45a049;
+}
+
+.header-controls {
+  display: flex;
+  align-items: center;
+  margin-bottom: 20px;
+  gap: 10px;
+}
+
+.quiz-management {
+  margin-bottom: 30px;
+  padding: 20px;
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.quiz-management h2 {
+  margin-top: 0;
+  margin-bottom: 20px;
+  color: #2c3e50;
+  padding-bottom: 10px;
+  border-bottom: 2px solid #eee;
+}
+
+.quiz-list {
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.quiz-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 15px;
+  border-bottom: 1px solid #eee;
+  transition: background-color 0.2s;
+}
+
+.quiz-item:hover {
+  background-color: #f8f9fa;
+}
+
+.quiz-item:last-child {
+  border-bottom: none;
+}
+
+.quiz-item span {
+  font-size: 16px;
+  color: #2c3e50;
+  flex-grow: 1;
+  margin-right: 20px;
+}
+
+.delete-button {
+  background-color: transparent;
+  color: #dc3545;
+  padding: 8px 16px;
+  border: 1px solid #dc3545;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: all 0.2s;
+  min-width: 80px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.delete-button:hover {
+  background-color: #dc3545;
+  color: white;
+}
+
+.delete-button:disabled {
+  background-color: #f8f9fa;
+  border-color: #dc354580;
+  color: #dc354580;
+  cursor: not-allowed;
+}
+
+/* Add smooth scrollbar for the quiz list */
+.quiz-list::-webkit-scrollbar {
+  width: 8px;
+}
+
+.quiz-list::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 4px;
+}
+
+.quiz-list::-webkit-scrollbar-thumb {
+  background: #ccc;
+  border-radius: 4px;
+}
+
+.quiz-list::-webkit-scrollbar-thumb:hover {
+  background: #999;
+}
+
+.error {
+  color: #dc3545;
+  padding: 20px;
+  text-align: center;
+  background: #fff;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  margin: 20px 0;
+}
+
+.quiz-buttons {
+  display: flex;
+  gap: 10px;
+  margin-top: 20px;
 } 

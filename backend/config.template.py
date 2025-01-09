@@ -6,6 +6,19 @@ AWS_SECRET_KEY = 'your-aws-secret-key'
 # Supported Languages
 SUPPORTED_LANGUAGES = {
     'en': 'English',
+    # Indian Languages
+    'hi': 'Hindi',
+    'bn': 'Bengali',
+    'te': 'Telugu',
+    'ta': 'Tamil',
+    'mr': 'Marathi',
+    'gu': 'Gujarati',
+    'kn': 'Kannada',
+    'ml': 'Malayalam',
+    'pa': 'Punjabi',
+    'ur': 'Urdu',
+    'or': 'Odia',
+    # Other Languages
     'es': 'Spanish',
     'fr': 'French',
     'de': 'German',
@@ -16,6 +29,8 @@ SUPPORTED_LANGUAGES = {
     'ko': 'Korean',
     'zh': 'Chinese',
     'ar': 'Arabic',
-    'hi': 'Hindi',
-    'tr': 'Turkish'
+    'id': 'Indonesian',
+    'tr': 'Turkish',
+    'vi': 'Vietnamese',
+    'ga': 'Irish'
 } 

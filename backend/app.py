@@ -150,28 +150,30 @@ def submit_attempt():
         db.session.add(attempt)
         db.session.flush()  # Get the attempt ID
 
-        for answer in answers:
-            if 'question_id' not in answer or 'selected_option_id' not in answer:
-                return jsonify({'error': 'Invalid answer format'}), 400
+        # Create a map of question IDs to correct option IDs
+        correct_answers = {
+            q.id: next((o.id for o in q.options if o.is_correct), None)
+            for q in quiz.questions
+        }
 
-            question = Question.query.get(answer['question_id'])
-            if not question or question.quiz_id != quiz_id:
+        for answer in answers:
+            question_id = answer['question_id']
+            selected_option_id = answer['selected_option_id']
+
+            # Verify the question belongs to this quiz
+            if question_id not in correct_answers:
                 return jsonify({'error': 'Invalid question ID'}), 400
 
-            correct_option = Option.query.filter_by(
-                question_id=question.id,
-                is_correct=True
-            ).first()
-            
             # Store the answer
             quiz_answer = QuizAnswer(
                 attempt_id=attempt.id,
-                question_id=question['question_id'],
-                selected_option_id=answer['selected_option_id']
+                question_id=question_id,
+                selected_option_id=selected_option_id
             )
             db.session.add(quiz_answer)
             
-            if answer['selected_option_id'] == correct_option.id:
+            # Check if the answer is correct
+            if selected_option_id == correct_answers[question_id]:
                 score += 1
         
         # Update the attempt score
@@ -181,10 +183,12 @@ def submit_attempt():
         return jsonify({
             'score': score,
             'total': total_questions,
-            'percentage': (score/total_questions) * 100
+            'percentage': (score/total_questions) * 100 if total_questions > 0 else 0
         })
+
     except Exception as e:
         db.session.rollback()
+        print(f"Error in submit_attempt: {str(e)}")  # Add logging
         return jsonify({'error': 'Failed to submit quiz attempt'}), 500
 
 @app.route('/api/quiz/<int:quiz_id>/stats', methods=['GET'])
@@ -284,6 +288,32 @@ def get_quiz_stats(quiz_id):
     except Exception as e:
         print(f"Error in get_quiz_stats: {str(e)}")  # Add logging
         return jsonify({'error': 'Failed to fetch quiz statistics'}), 500
+
+@app.route('/api/quiz/<int:quiz_id>', methods=['DELETE'])
+def delete_quiz(quiz_id):
+    try:
+        quiz = Quiz.query.get_or_404(quiz_id)
+        
+        # Delete all related records first
+        QuizAnswer.query.filter(
+            QuizAnswer.question_id.in_(q.id for q in quiz.questions)
+        ).delete(synchronize_session=False)
+        
+        QuizAttempt.query.filter_by(quiz_id=quiz_id).delete()
+        
+        for question in quiz.questions:
+            Option.query.filter_by(question_id=question.id).delete()
+        
+        Question.query.filter_by(quiz_id=quiz_id).delete()
+        
+        # Finally delete the quiz
+        db.session.delete(quiz)
+        db.session.commit()
+        
+        return jsonify({'message': 'Quiz deleted successfully'})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': 'Failed to delete quiz'}), 500
 
 def get_supported_languages():
     """Return dictionary of supported languages"""
