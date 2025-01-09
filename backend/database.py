@@ -25,4 +25,12 @@ class QuizAttempt(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     quiz_id = db.Column(db.Integer, db.ForeignKey('quiz.id'), nullable=False)
     score = db.Column(db.Integer, nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    answers = db.relationship('QuizAnswer', backref='attempt', lazy=True)
+
+class QuizAnswer(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    attempt_id = db.Column(db.Integer, db.ForeignKey('quiz_attempt.id'), nullable=False)
+    question_id = db.Column(db.Integer, db.ForeignKey('question.id'), nullable=False)
+    selected_option_id = db.Column(db.Integer, db.ForeignKey('option.id'), nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow) 

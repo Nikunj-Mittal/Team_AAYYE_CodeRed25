@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 
-function QuizAttempt({ quizId, onBack }) {
+function QuizAttempt({ quizId, onBack, language }) {
   const [quiz, setQuiz] = useState(null);
   const [answers, setAnswers] = useState({});
   const [result, setResult] = useState(null);
@@ -11,7 +11,7 @@ function QuizAttempt({ quizId, onBack }) {
 
   const fetchQuiz = async () => {
     try {
-      const response = await fetch(`http://localhost:5000/api/quiz/${quizId}`);
+      const response = await fetch(`http://localhost:5000/api/quiz/${quizId}?lang=${language}`);
       const data = await response.json();
       setQuiz(data);
       setAnswers({});

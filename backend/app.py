@@ -1,7 +1,13 @@
 from flask import Flask, request, jsonify
 from flask_cors import CORS
-from database import db, Quiz, Question, Option, QuizAttempt
+from database import db, Quiz, Question, Option, QuizAttempt, QuizAnswer
+from translate_utils import translate_quiz_data, translate_text
 import os
+import requests
+import uuid
+import boto3
+from botocore.exceptions import ClientError
+from config import AWS_REGION, AWS_ACCESS_KEY, AWS_SECRET_KEY, SUPPORTED_LANGUAGES
 
 app = Flask(__name__)
 CORS(app, resources={r"/api/*": {"origins": "*"}})
@@ -73,18 +79,27 @@ def create_quiz():
 @app.route('/api/quizzes', methods=['GET'])
 def get_quizzes():
     try:
+        target_language = request.args.get('lang', 'en')
         quizzes = Quiz.query.all()
-        return jsonify([{
+        quiz_list = [{
             'id': quiz.id,
             'title': quiz.title,
             'created_at': quiz.created_at
-        } for quiz in quizzes])
+        } for quiz in quizzes]
+        
+        # Translate titles if a target language is specified
+        if target_language != 'en':
+            for quiz in quiz_list:
+                quiz['title'] = translate_text(quiz['title'], target_language)
+                
+        return jsonify(quiz_list)
     except Exception as e:
         return jsonify({'error': 'Failed to fetch quizzes'}), 500
 
 @app.route('/api/quiz/<int:quiz_id>', methods=['GET'])
 def get_quiz(quiz_id):
     try:
+        target_language = request.args.get('lang', 'en')
         quiz = Quiz.query.get_or_404(quiz_id)
         questions = []
         
@@ -101,11 +116,15 @@ def get_quiz(quiz_id):
                 'options': options
             })
         
-        return jsonify({
+        quiz_data = {
             'id': quiz.id,
             'title': quiz.title,
             'questions': questions
-        })
+        }
+        
+        # Translate the quiz data if a target language is specified
+        translated_data = translate_quiz_data(quiz_data, target_language)
+        return jsonify(translated_data)
     except Exception as e:
         return jsonify({'error': 'Failed to fetch quiz'}), 500
 
@@ -126,6 +145,11 @@ def submit_attempt():
         if not answers or len(answers) != total_questions:
             return jsonify({'error': 'All questions must be answered'}), 400
 
+        # Create the attempt first
+        attempt = QuizAttempt(quiz_id=quiz_id, score=0)
+        db.session.add(attempt)
+        db.session.flush()  # Get the attempt ID
+
         for answer in answers:
             if 'question_id' not in answer or 'selected_option_id' not in answer:
                 return jsonify({'error': 'Invalid answer format'}), 400
@@ -139,11 +163,19 @@ def submit_attempt():
                 is_correct=True
             ).first()
             
+            # Store the answer
+            quiz_answer = QuizAnswer(
+                attempt_id=attempt.id,
+                question_id=question['question_id'],
+                selected_option_id=answer['selected_option_id']
+            )
+            db.session.add(quiz_answer)
+            
             if answer['selected_option_id'] == correct_option.id:
                 score += 1
         
-        attempt = QuizAttempt(quiz_id=quiz_id, score=score)
-        db.session.add(attempt)
+        # Update the attempt score
+        attempt.score = score
         db.session.commit()
         
         return jsonify({
@@ -154,6 +186,145 @@ def submit_attempt():
     except Exception as e:
         db.session.rollback()
         return jsonify({'error': 'Failed to submit quiz attempt'}), 500
+
+@app.route('/api/quiz/<int:quiz_id>/stats', methods=['GET'])
+def get_quiz_stats(quiz_id):
+    try:
+        quiz = Quiz.query.get_or_404(quiz_id)
+        attempts = QuizAttempt.query.filter_by(quiz_id=quiz_id).all()
+        
+        if not attempts:
+            return jsonify({
+                'totalAttempts': 0,
+                'averageScore': 0,
+                'highestScore': 0,
+                'passRate': 0,
+                'scoreDistribution': [0, 0, 0, 0, 0],
+                'attemptDates': [],
+                'attemptsPerDay': [],
+                'questionSuccessRates': [],
+                'questionNumbers': [],
+                'questionDetails': []
+            })
+
+        # Calculate basic statistics
+        total_attempts = len(attempts)
+        total_questions = len(quiz.questions)
+        scores = [attempt.score / total_questions for attempt in attempts]  # Convert to percentage
+        avg_score = sum(scores) / total_attempts * 100
+        highest_score = max(scores) * 100
+        pass_rate = len([s for s in scores if s >= 0.6]) / total_attempts * 100
+
+        # Calculate score distribution
+        score_ranges = [0] * 5
+        for score in scores:
+            index = min(int(score * 5), 4)
+            score_ranges[index] += 1
+
+        # Calculate attempts over time
+        from collections import defaultdict
+        from datetime import datetime, timedelta
+        
+        attempt_dates = defaultdict(int)
+        for attempt in attempts:
+            date_str = attempt.created_at.strftime('%Y-%m-%d')
+            attempt_dates[date_str] += 1
+
+        # Sort dates and get last 7 days
+        sorted_dates = sorted(attempt_dates.items())[-7:]
+        dates = [date for date, _ in sorted_dates]
+        daily_attempts = [count for _, count in sorted_dates]
+
+        # Calculate per-question statistics
+        question_stats = []
+        for question in quiz.questions:
+            correct_answers = 0
+            wrong_answers = defaultdict(int)
+            
+            # Get all answers for this question
+            answers = QuizAnswer.query.filter_by(question_id=question.id).all()
+            total_answers = len(answers)
+            
+            if total_answers > 0:
+                for answer in answers:
+                    if answer.selected_option_id == Option.query.filter_by(
+                        question_id=question.id,
+                        is_correct=True
+                    ).first().id:
+                        correct_answers += 1
+                    else:
+                        selected_text = Option.query.get(answer.selected_option_id).option_text
+                        wrong_answers[selected_text] += 1
+
+                success_rate = (correct_answers / total_answers) * 100
+                common_wrong = max(wrong_answers.items(), key=lambda x: x[1])[0] if wrong_answers else "N/A"
+            else:
+                success_rate = 0
+                common_wrong = "N/A"
+            
+            question_stats.append({
+                'question': question.question_text[:50] + "...",
+                'successRate': success_rate,
+                'commonWrongAnswer': common_wrong
+            })
+
+        return jsonify({
+            'totalAttempts': total_attempts,
+            'averageScore': avg_score,
+            'highestScore': highest_score,
+            'passRate': pass_rate,
+            'scoreDistribution': score_ranges,
+            'attemptDates': dates,
+            'attemptsPerDay': daily_attempts,
+            'questionSuccessRates': [stat['successRate'] for stat in question_stats],
+            'questionNumbers': [f"Q{i}" for i in range(1, len(quiz.questions) + 1)],
+            'questionDetails': question_stats
+        })
+
+    except Exception as e:
+        print(f"Error in get_quiz_stats: {str(e)}")  # Add logging
+        return jsonify({'error': 'Failed to fetch quiz statistics'}), 500
+
+def get_supported_languages():
+    """Return dictionary of supported languages"""
+    return SUPPORTED_LANGUAGES
+
+def translate_text(text, target_lang):
+    """
+    Translate text using Amazon Translate
+    
+    Args:
+        text (str): Text to translate
+        target_lang (str): Target language code
+        
+    Returns:
+        str: Translated text or original text if translation fails
+    """
+    if target_lang not in SUPPORTED_LANGUAGES:
+        print(f"Unsupported language code: {target_lang}")
+        return text
+        
+    try:
+        translate_client = boto3.client('translate',
+            region_name=AWS_REGION,
+            aws_access_key_id=AWS_ACCESS_KEY,
+            aws_secret_access_key=AWS_SECRET_KEY
+        )
+        
+        response = translate_client.translate_text(
+            Text=text,
+            SourceLanguageCode='en',  # Source language is English
+            TargetLanguageCode=target_lang
+        )
+        
+        return response['TranslatedText']
+        
+    except ClientError as e:
+        print(f"AWS Translation error: {e}")
+        return text
+    except Exception as e:
+        print(f"Unexpected error during translation: {e}")
+        return text
 
 if __name__ == '__main__':
     app.run(debug=True)
