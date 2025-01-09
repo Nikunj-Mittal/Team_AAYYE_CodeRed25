@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import '../styles/rtl.css';
+import HandGestureControl from './HandGestureControl';
 
 function QuizAttempt({ quizId, onBack, language }) {
   const [quiz, setQuiz] = useState(null);
@@ -9,6 +10,7 @@ function QuizAttempt({ quizId, onBack, language }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [skippedQuestions, setSkippedQuestions] = useState(new Set());
+  const [gestureControlEnabled, setGestureControlEnabled] = useState(false);
 
   useEffect(() => {
     fetchQuiz();
@@ -101,6 +103,40 @@ function QuizAttempt({ quizId, onBack, language }) {
     setError(null); // Clear any existing errors
     if (currentQuestionIndex > 0) {
       setCurrentQuestionIndex(currentQuestionIndex - 1);
+    }
+  };
+
+  const handleGestureDetected = (gesture) => {
+    if (!quiz) return;
+
+    switch (gesture) {
+      case 0:
+        // Previous question
+        if (currentQuestionIndex > 0) {
+          setCurrentQuestionIndex(currentQuestionIndex - 1);
+        }
+        break;
+      case 1:
+      case 2:
+      case 3:
+      case 4:
+        // Select option
+        const currentQuestion = quiz.questions[currentQuestionIndex];
+        if (currentQuestion && currentQuestion.options[gesture - 1]) {
+          setAnswers({
+            ...answers,
+            [currentQuestion.id]: currentQuestion.options[gesture - 1].id.toString()
+          });
+        }
+        break;
+      case 5:
+        // Next question or submit
+        if (currentQuestionIndex < quiz.questions.length - 1) {
+          setCurrentQuestionIndex(currentQuestionIndex + 1);
+        } else {
+          handleSubmit(new Event('submit'));
+        }
+        break;
     }
   };
 
@@ -235,6 +271,37 @@ function QuizAttempt({ quizId, onBack, language }) {
           )}
         </div>
       </form>
+
+      <div className="gesture-control-toggle">
+        <label>
+          <input
+            type="checkbox"
+            checked={gestureControlEnabled}
+            onChange={(e) => setGestureControlEnabled(e.target.checked)}
+          />
+          Enable Gesture Control
+        </label>
+      </div>
+
+      <HandGestureControl
+        onGestureDetected={handleGestureDetected}
+        enabled={gestureControlEnabled}
+      />
+
+      {gestureControlEnabled && (
+        <div className="gesture-instructions">
+          <h3>Gesture Controls:</h3>
+          <ul>
+            <li>Closed hand (no fingers): Previous question</li>
+            <li>Thumb only: Select first option</li>
+            <li>Thumb + 1 finger: Select second option</li>
+            <li>Thumb + 2 fingers: Select third option</li>
+            <li>Thumb + 3 fingers: Select fourth option</li>
+            <li>All fingers + thumb: Next question / Submit</li>
+          </ul>
+          <p>Hold gesture for 1 second to activate</p>
+        </div>
+      )}
     </div>
   );
 }
