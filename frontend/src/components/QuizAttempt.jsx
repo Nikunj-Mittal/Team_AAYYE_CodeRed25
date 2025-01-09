@@ -3,7 +3,7 @@ import '../styles/rtl.css';
 import HandGestureControl from './HandGestureControl';
 import { useVoiceNavigation } from '../hooks/useVoiceControl';
 
-function QuizAttempt({ quizId, onBack, language }) {
+function QuizAttempt({ quizId, onBack, language, selectedControl }) {
   const [quiz, setQuiz] = useState(null);
   const [answers, setAnswers] = useState({});
   const [result, setResult] = useState(null);
@@ -167,6 +167,71 @@ function QuizAttempt({ quizId, onBack, language }) {
     }
   };
 
+  const renderControls = () => {
+    return (
+      <>
+        {selectedControl === 'voice' && (
+          <>
+            <div className="voice-control-container">
+              <div className="voice-instructions">
+                <h3>Voice Commands:</h3>
+                <ul>
+                  <li>"Next question" - Move to next question</li>
+                  <li>"Previous question" - Move to previous question</li>
+                  <li>"Select option [1-4]" - Select an answer option</li>
+                  <li>"Submit quiz" - Submit the quiz (on last question)</li>
+                  <li>"Exit quiz" - Exit to quiz list</li>
+                </ul>
+                <button 
+                  className={`voice-control-button ${voiceEnabled ? 'active' : ''}`}
+                  onClick={handleVoiceToggle}
+                  title={voiceEnabled ? 'Disable voice control' : 'Enable voice control'}
+                >
+                  {voiceEnabled ? '🎤 Voice ON' : '🎤 Voice OFF'}
+                </button>
+                {voiceEnabled && <p>Voice control is active</p>}
+              </div>
+            </div>
+          </>
+        )}
+
+        {selectedControl === 'gesture' && (
+          <>
+            <div className="gesture-control-container">
+              <div className="gesture-instructions">
+                <h3>Gesture Controls:</h3>
+                <ul>
+                  <li>Closed hand (no fingers): Previous question</li>
+                  <li>1 finger: Select first option</li>
+                  <li>2 fingers: Select second option</li>
+                  <li>3 fingers: Select third option</li>
+                  <li>4 fingers: Select fourth option</li>
+                  <li>All fingers: Next question / Submit</li>
+                </ul>
+                <div className="gesture-control-toggle">
+                  <label>
+                    <input
+                      type="checkbox"
+                      checked={gestureControlEnabled}
+                      onChange={(e) => setGestureControlEnabled(e.target.checked)}
+                    />
+                    Enable Gesture Control
+                  </label>
+                </div>
+                {gestureControlEnabled && <p>Hold gesture for 1 second to activate</p>}
+              </div>
+            </div>
+
+            <HandGestureControl
+              onGestureDetected={handleGestureDetected}
+              enabled={gestureControlEnabled}
+            />
+          </>
+        )}
+      </>
+    );
+  };
+
   // Loading state
   if (loading) {
     return <div className="loading">Loading...</div>;
@@ -209,13 +274,6 @@ function QuizAttempt({ quizId, onBack, language }) {
     <div className={containerClass}>
       <div className="quiz-header">
         <h2>{quiz?.title}</h2>
-        <button 
-          className={`voice-control-button ${voiceEnabled ? 'active' : ''}`}
-          onClick={handleVoiceToggle}
-          title={voiceEnabled ? 'Disable voice control' : 'Enable voice control'}
-        >
-          {voiceEnabled ? '🎤 Voice ON' : '🎤 Voice OFF'}
-        </button>
       </div>
       
       <div className="quiz-progress">
@@ -308,51 +366,7 @@ function QuizAttempt({ quizId, onBack, language }) {
         </div>
       </form>
 
-      {/* Voice control instructions */}
-      {voiceEnabled && (
-        <div className="voice-instructions">
-          <h3>Voice Commands:</h3>
-          <ul>
-            <li>"Next question" - Move to next question</li>
-            <li>"Previous question" - Move to previous question</li>
-            <li>"Select option [1-4]" - Select an answer option</li>
-            <li>"Submit quiz" - Submit the quiz (on last question)</li>
-            <li>"Exit quiz" - Exit to quiz list</li>
-          </ul>
-          <p>Voice control is active</p>
-        </div>
-      )}
-
-      <div className="gesture-control-toggle">
-        <label>
-          <input
-            type="checkbox"
-            checked={gestureControlEnabled}
-            onChange={(e) => setGestureControlEnabled(e.target.checked)}
-          />
-          Enable Gesture Control
-        </label>
-      </div>
-
-      <HandGestureControl
-        onGestureDetected={handleGestureDetected}
-        enabled={gestureControlEnabled}
-      />
-
-      {gestureControlEnabled && (
-        <div className="gesture-instructions">
-          <h3>Gesture Controls:</h3>
-          <ul>
-            <li>Closed hand (no fingers): Previous question</li>
-            <li>Thumb only: Select first option</li>
-            <li>Thumb + 1 finger: Select second option</li>
-            <li>Thumb + 2 fingers: Select third option</li>
-            <li>Thumb + 3 fingers: Select fourth option</li>
-            <li>All fingers + thumb: Next question / Submit</li>
-          </ul>
-          <p>Hold gesture for 1 second to activate</p>
-        </div>
-      )}
+      {renderControls()}
     </div>
   );
 }
