@@ -39,3 +39,5 @@ config.py
 
 # Node
 node_modules/ 
+
+venv_name/

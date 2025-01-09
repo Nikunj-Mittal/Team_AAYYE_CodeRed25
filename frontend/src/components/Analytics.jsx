@@ -12,6 +12,7 @@ import {
   Tooltip,
   Legend
 } from 'chart.js';
+import '../styles/rtl.css';
 
 ChartJS.register(
   CategoryScale,
@@ -25,11 +26,12 @@ ChartJS.register(
   Legend
 );
 
-function Analytics({ quizzes }) {
+function Analytics({ quizzes, language }) {
   const [selectedQuiz, setSelectedQuiz] = useState(null);
   const [quizStats, setQuizStats] = useState(null);
   const [loading, setLoading] = useState(false);
   const [timeRange, setTimeRange] = useState('week');
+  const isRTL = ['ar', 'fa', 'he', 'ur'].includes(language);
 
   useEffect(() => {
     if (selectedQuiz) {
@@ -123,7 +125,7 @@ function Analytics({ quizzes }) {
   };
 
   return (
-    <div className="analytics">
+    <div className={`analytics-container ${isRTL ? 'rtl' : ''}`}>
       <div className="analytics-header">
         <div className="quiz-selector">
           <label htmlFor="quiz-select">Select Quiz: </label>

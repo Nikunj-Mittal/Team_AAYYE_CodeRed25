@@ -8,6 +8,7 @@ import uuid
 import boto3
 from botocore.exceptions import ClientError
 from config import AWS_REGION, AWS_ACCESS_KEY, AWS_SECRET_KEY, SUPPORTED_LANGUAGES
+from typing import Dict, Set
 
 app = Flask(__name__)
 CORS(app, resources={r"/api/*": {"origins": "*"}})
@@ -21,6 +22,8 @@ db.init_app(app)
 # Create tables
 with app.app_context():
     db.create_all()
+
+RTL_LANGUAGES: Set[str] = {'ar', 'fa', 'he', 'ur'}  # Arabic, Persian, Hebrew, Urdu
 
 @app.route('/', methods=['GET'])
 def home():
@@ -84,7 +87,8 @@ def get_quizzes():
         quiz_list = [{
             'id': quiz.id,
             'title': quiz.title,
-            'created_at': quiz.created_at
+            'created_at': quiz.created_at,
+            'isRTL': target_language in RTL_LANGUAGES
         } for quiz in quizzes]
         
         # Translate titles if a target language is specified
@@ -119,7 +123,8 @@ def get_quiz(quiz_id):
         quiz_data = {
             'id': quiz.id,
             'title': quiz.title,
-            'questions': questions
+            'questions': questions,
+            'isRTL': target_language in RTL_LANGUAGES
         }
         
         # Translate the quiz data if a target language is specified
@@ -142,39 +147,43 @@ def submit_attempt():
         score = 0
         total_questions = len(quiz.questions)
         
-        if not answers or len(answers) != total_questions:
-            return jsonify({'error': 'All questions must be answered'}), 400
+        # Remove validation for number of answers
+        # if not answers or len(answers) != total_questions:
+        #     return jsonify({'error': 'All questions must be answered'}), 400
 
         # Create the attempt first
         attempt = QuizAttempt(quiz_id=quiz_id, score=0)
         db.session.add(attempt)
         db.session.flush()  # Get the attempt ID
 
-        # Create a map of question IDs to correct option IDs
-        correct_answers = {
-            q.id: next((o.id for o in q.options if o.is_correct), None)
-            for q in quiz.questions
-        }
-
+        # Only score the questions that were answered
+        answered_questions = len(answers)
         for answer in answers:
-            question_id = answer['question_id']
-            selected_option_id = answer['selected_option_id']
+            if 'question_id' not in answer or 'selected_option_id' not in answer:
+                return jsonify({'error': 'Invalid answer format'}), 400
 
-            # Verify the question belongs to this quiz
-            if question_id not in correct_answers:
+            question = Question.query.get(answer['question_id'])
+            if not question or question.quiz_id != quiz_id:
                 return jsonify({'error': 'Invalid question ID'}), 400
 
+            correct_option = Option.query.filter_by(
+                question_id=question.id,
+                is_correct=True
+            ).first()
+            
             # Store the answer
             quiz_answer = QuizAnswer(
                 attempt_id=attempt.id,
-                question_id=question_id,
-                selected_option_id=selected_option_id
+                question_id=answer['question_id'],
+                selected_option_id=answer['selected_option_id']
             )
             db.session.add(quiz_answer)
             
-            # Check if the answer is correct
-            if selected_option_id == correct_answers[question_id]:
+            if answer['selected_option_id'] == correct_option.id:
                 score += 1
+        
+        # Calculate percentage based on answered questions instead of total questions
+        percentage = (score/answered_questions * 100) if answered_questions > 0 else 0
         
         # Update the attempt score
         attempt.score = score
@@ -182,13 +191,12 @@ def submit_attempt():
         
         return jsonify({
             'score': score,
-            'total': total_questions,
-            'percentage': (score/total_questions) * 100 if total_questions > 0 else 0
+            'total': answered_questions,  # Change to show only answered questions
+            'percentage': percentage,
+            'skipped': total_questions - answered_questions  # Add skipped count
         })
-
     except Exception as e:
         db.session.rollback()
-        print(f"Error in submit_attempt: {str(e)}")  # Add logging
         return jsonify({'error': 'Failed to submit quiz attempt'}), 500
 
 @app.route('/api/quiz/<int:quiz_id>/stats', methods=['GET'])
@@ -288,32 +296,6 @@ def get_quiz_stats(quiz_id):
     except Exception as e:
         print(f"Error in get_quiz_stats: {str(e)}")  # Add logging
         return jsonify({'error': 'Failed to fetch quiz statistics'}), 500
-
-@app.route('/api/quiz/<int:quiz_id>', methods=['DELETE'])
-def delete_quiz(quiz_id):
-    try:
-        quiz = Quiz.query.get_or_404(quiz_id)
-        
-        # Delete all related records first
-        QuizAnswer.query.filter(
-            QuizAnswer.question_id.in_(q.id for q in quiz.questions)
-        ).delete(synchronize_session=False)
-        
-        QuizAttempt.query.filter_by(quiz_id=quiz_id).delete()
-        
-        for question in quiz.questions:
-            Option.query.filter_by(question_id=question.id).delete()
-        
-        Question.query.filter_by(quiz_id=quiz_id).delete()
-        
-        # Finally delete the quiz
-        db.session.delete(quiz)
-        db.session.commit()
-        
-        return jsonify({'message': 'Quiz deleted successfully'})
-    except Exception as e:
-        db.session.rollback()
-        return jsonify({'error': 'Failed to delete quiz'}), 500
 
 def get_supported_languages():
     """Return dictionary of supported languages"""

@@ -1,0 +1,328 @@
+.rtl {
+    direction: rtl;
+    text-align: right;
+}
+
+.rtl .quiz-option {
+    text-align: right;
+}
+
+.rtl .quiz-navigation {
+    flex-direction: row-reverse;
+}
+
+.rtl .quiz-stats {
+    direction: rtl;
+}
+
+.rtl .language-selector {
+    direction: ltr; /* Keep language selector LTR */
+}
+
+/* Flip icons and arrows in RTL mode */
+.rtl .icon-arrow,
+.rtl .icon-next,
+.rtl .icon-prev {
+    transform: scaleX(-1);
+}
+
+.quiz-container {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 20px;
+}
+
+.quiz-progress {
+  margin: 20px 0;
+  background: #f5f5f5;
+  padding: 15px;
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+
+.progress-bar {
+  margin-top: 10px;
+  height: 8px;
+  width: 100%;
+  background-color: #eee;
+  border-radius: 5px;
+  overflow: hidden;
+}
+
+.progress-fill {
+  height: 100%;
+  background-color: #4CAF50;
+  transition: width 0.4s ease-in-out;
+}
+
+.question {
+  background-color: #fff;
+  padding: 20px;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  margin: 20px 0;
+  animation: slideIn 0.3s ease-out;
+  position: relative;
+}
+
+.question-text {
+  font-size: 1.2em;
+  margin-bottom: 20px;
+}
+
+.options-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.option-label {
+  display: flex;
+  align-items: center;
+  padding: 12px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.option-label:hover {
+  background-color: #f5f5f5;
+}
+
+.option-text {
+  margin-left: 12px;
+}
+
+.navigation-buttons {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 30px;
+  padding-top: 20px;
+  border-top: 1px solid #eee;
+}
+
+.nav-button {
+  padding: 10px 20px;
+  border: none;
+  border-radius: 4px;
+  background-color: #2196F3;
+  color: white;
+  cursor: pointer;
+  transition: background-color 0.2s;
+  min-width: 120px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 500;
+}
+
+.nav-button:disabled {
+  background-color: #ccc;
+  cursor: not-allowed;
+}
+
+.nav-button:hover:not(:disabled) {
+  background-color: #1976D2;
+}
+
+.submit-button {
+  padding: 10px 30px;
+  background-color: #4CAF50;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+  min-width: 120px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 500;
+}
+
+.submit-button:disabled {
+  background-color: #ccc;
+  cursor: not-allowed;
+}
+
+.submit-button:hover:not(:disabled) {
+  background-color: #45a049;
+}
+
+.back-button {
+  margin-top: 20px;
+  padding: 8px 16px;
+  background-color: #f44336;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.back-button:hover {
+  background-color: #d32f2f;
+}
+
+/* RTL specific adjustments */
+.rtl .option-text {
+  margin-left: 0;
+  margin-right: 12px;
+}
+
+.rtl .navigation-buttons {
+  flex-direction: row-reverse;
+}
+
+.loading {
+  text-align: center;
+  padding: 20px;
+  font-size: 1.2em;
+  color: #666;
+}
+
+.error-container {
+  text-align: center;
+  padding: 20px;
+  margin: 20px auto;
+  max-width: 600px;
+}
+
+.error-message {
+  color: #f44336;
+  background-color: #ffebee;
+  padding: 10px;
+  border-radius: 4px;
+  margin: 10px 0;
+}
+
+.retry-button {
+  background-color: #2196F3;
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 4px;
+  margin: 10px;
+  cursor: pointer;
+}
+
+.retry-button:hover {
+  background-color: #1976D2;
+}
+
+/* Disable transitions when loading */
+.loading * {
+  transition: none !important;
+}
+
+/* Style for disabled buttons */
+button:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+/* Add animation for question transitions */
+.question {
+  animation: slideIn 0.3s ease-out;
+  position: relative;
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateX(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+/* Add RTL-specific animations */
+.rtl .question {
+  animation: slideInRTL 0.3s ease-out;
+}
+
+@keyframes slideInRTL {
+  from {
+    opacity: 0;
+    transform: translateX(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+/* Add styles for skip button */
+.skip-button {
+  padding: 10px 20px;
+  border: none;
+  border-radius: 4px;
+  background-color: #FF9800;
+  color: white;
+  cursor: pointer;
+  transition: background-color 0.2s;
+  min-width: 120px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 500;
+  margin: 0 10px;
+}
+
+.skip-button:hover:not(:disabled) {
+  background-color: #F57C00;
+}
+
+.skip-button:disabled {
+  background-color: #ccc;
+  cursor: not-allowed;
+}
+
+/* Question status styles */
+.question-status {
+  margin-top: 15px;
+  text-align: center;
+}
+
+.status {
+  padding: 5px 10px;
+  border-radius: 12px;
+  font-size: 0.9em;
+  font-weight: 500;
+}
+
+.status.skipped {
+  background-color: #FFE0B2;
+  color: #E65100;
+}
+
+.status.answered {
+  background-color: #C8E6C9;
+  color: #2E7D32;
+}
+
+.status.unanswered {
+  background-color: #FFCDD2;
+  color: #C62828;
+}
+
+/* Update navigation buttons to accommodate skip button */
+.navigation-buttons {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  margin-top: 30px;
+  padding-top: 20px;
+  border-top: 1px solid #eee;
+}
+
+/* RTL support for skip button */
+.rtl .skip-button {
+  margin: 0 10px;
+} 
