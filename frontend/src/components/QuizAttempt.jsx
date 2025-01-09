@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import '../styles/rtl.css';
 import HandGestureControl from './HandGestureControl';
+import { useVoiceNavigation } from '../hooks/useVoiceControl';
 
 function QuizAttempt({ quizId, onBack, language }) {
   const [quiz, setQuiz] = useState(null);
@@ -11,6 +12,94 @@ function QuizAttempt({ quizId, onBack, language }) {
   const [error, setError] = useState(null);
   const [skippedQuestions, setSkippedQuestions] = useState(new Set());
   const [gestureControlEnabled, setGestureControlEnabled] = useState(false);
+  const [voiceEnabled, setVoiceEnabled] = useState(false);
+
+  // Voice control handlers
+  const handleSelectOption = useCallback((optionIndex) => {
+    const currentQuestion = quiz?.questions[currentQuestionIndex];
+    if (currentQuestion && currentQuestion.options[optionIndex]) {
+      setAnswers(prev => ({
+        ...prev,
+        [currentQuestion.id]: currentQuestion.options[optionIndex].id.toString()
+      }));
+      setError(null);
+    }
+  }, [quiz, currentQuestionIndex]);
+
+  const handleNext = useCallback(() => {
+    setError(null);
+    if (currentQuestionIndex < quiz?.questions.length - 1) {
+      const currentQuestion = quiz.questions[currentQuestionIndex];
+      if (!answers[currentQuestion.id]) {
+        setSkippedQuestions(prev => new Set(prev).add(currentQuestion.id));
+      }
+      setCurrentQuestionIndex(prev => prev + 1);
+    }
+  }, [quiz, currentQuestionIndex, answers]);
+
+  const handlePrevious = useCallback(() => {
+    setError(null);
+    if (currentQuestionIndex > 0) {
+      setCurrentQuestionIndex(prev => prev - 1);
+    }
+  }, [currentQuestionIndex]);
+
+  const handleSubmit = useCallback(async (e) => {
+    if (e) e.preventDefault();
+    
+    try {
+      setLoading(true);
+      const answeredQuestions = Object.entries(answers).map(([questionId, optionId]) => ({
+        question_id: parseInt(questionId),
+        selected_option_id: parseInt(optionId)
+      }));
+
+      const response = await fetch('http://localhost:5000/api/quiz/attempt', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          quiz_id: quizId,
+          answers: answeredQuestions
+        }),
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Failed to submit quiz: ${response.statusText}`);
+      }
+      
+      const data = await response.json();
+      setResult({
+        ...data,
+        skippedCount: skippedQuestions.size
+      });
+    } catch (error) {
+      setError(error.message);
+      console.error('Error submitting quiz:', error);
+    } finally {
+      setLoading(false);
+    }
+  }, [quizId, answers, skippedQuestions]);
+
+  // Initialize voice navigation
+  const { toggleVoiceRecognition } = useVoiceNavigation({
+    onNext: handleNext,
+    onPrevious: handlePrevious,
+    onSubmit: handleSubmit,
+    onBack,
+    onSelectOption: handleSelectOption,
+    isLastQuestion: quiz ? currentQuestionIndex === quiz.questions.length - 1 : false,
+    language
+  });
+
+  const handleVoiceToggle = useCallback(() => {
+    setVoiceEnabled(prev => {
+      const newState = !prev;
+      toggleVoiceRecognition(newState);
+      return newState;
+    });
+  }, [toggleVoiceRecognition]);
 
   useEffect(() => {
     fetchQuiz();
@@ -41,68 +130,6 @@ function QuizAttempt({ quizId, onBack, language }) {
       setError(error.message);
     } finally {
       setLoading(false);
-    }
-  };
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    
-    try {
-      setLoading(true);
-      const answeredQuestions = Object.entries(answers).map(([questionId, optionId]) => ({
-        question_id: parseInt(questionId),
-        selected_option_id: parseInt(optionId)
-      }));
-
-      const response = await fetch('http://localhost:5000/api/quiz/attempt', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          quiz_id: quizId,
-          answers: answeredQuestions
-        }),
-      });
-      
-      if (!response.ok) {
-        throw new Error(`Failed to submit quiz: ${response.statusText}`);
-      }
-      
-      const data = await response.json();
-      setResult({
-        ...data,
-        skippedCount: skippedQuestions.size  // Add skipped count to results
-      });
-    } catch (error) {
-      setError(error.message);
-      console.error('Error submitting quiz:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleNext = () => {
-    // Clear any existing errors
-    setError(null);
-    
-    // Move to next question regardless of answer
-    if (currentQuestionIndex < quiz.questions.length - 1) {
-      // If question is not answered, consider it skipped
-      const currentQuestion = quiz.questions[currentQuestionIndex];
-      if (!answers[currentQuestion.id]) {
-        const newSkipped = new Set(skippedQuestions);
-        newSkipped.add(currentQuestion.id);
-        setSkippedQuestions(newSkipped);
-      }
-      setCurrentQuestionIndex(currentQuestionIndex + 1);
-    }
-  };
-
-  const handlePrevious = () => {
-    setError(null); // Clear any existing errors
-    if (currentQuestionIndex > 0) {
-      setCurrentQuestionIndex(currentQuestionIndex - 1);
     }
   };
 
@@ -180,7 +207,16 @@ function QuizAttempt({ quizId, onBack, language }) {
 
   return (
     <div className={containerClass}>
-      <h2>{quiz.title}</h2>
+      <div className="quiz-header">
+        <h2>{quiz?.title}</h2>
+        <button 
+          className={`voice-control-button ${voiceEnabled ? 'active' : ''}`}
+          onClick={handleVoiceToggle}
+          title={voiceEnabled ? 'Disable voice control' : 'Enable voice control'}
+        >
+          {voiceEnabled ? '🎤 Voice ON' : '🎤 Voice OFF'}
+        </button>
+      </div>
       
       <div className="quiz-progress">
         <p>Question {currentQuestionIndex + 1} of {totalQuestions}</p>
@@ -271,6 +307,21 @@ function QuizAttempt({ quizId, onBack, language }) {
           )}
         </div>
       </form>
+
+      {/* Voice control instructions */}
+      {voiceEnabled && (
+        <div className="voice-instructions">
+          <h3>Voice Commands:</h3>
+          <ul>
+            <li>"Next question" - Move to next question</li>
+            <li>"Previous question" - Move to previous question</li>
+            <li>"Select option [1-4]" - Select an answer option</li>
+            <li>"Submit quiz" - Submit the quiz (on last question)</li>
+            <li>"Exit quiz" - Exit to quiz list</li>
+          </ul>
+          <p>Voice control is active</p>
+        </div>
+      )}
 
       <div className="gesture-control-toggle">
         <label>
