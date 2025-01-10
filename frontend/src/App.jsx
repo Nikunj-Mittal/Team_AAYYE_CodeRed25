@@ -4,6 +4,7 @@ import StudentView from './views/StudentView';
 import './App.css';
 import QuizList from './components/QuizList';
 import QuizAttempt from './components/QuizAttempt';
+import LanguageSelector from './components/LanguageSelector';
 
 function App() {
   const [selectedQuiz, setSelectedQuiz] = useState(null);
@@ -49,6 +50,10 @@ function App() {
     return (
       <div className="role-selection">
         <h1>Quiz Platform</h1>
+        <LanguageSelector
+          selectedLanguage={selectedLanguage}
+          onLanguageChange={setSelectedLanguage}
+        />
         <h2>Select your role:</h2>
         <button onClick={() => setRole('teacher')}>Teacher</button>
         <button onClick={() => setRole('student')}>Student</button>
@@ -59,7 +64,13 @@ function App() {
   if (role === 'teacher') {
     return (
       <div className="App">
-        <TeacherView />
+        <div className="header-controls">
+          <LanguageSelector
+            selectedLanguage={selectedLanguage}
+            onLanguageChange={setSelectedLanguage}
+          />
+        </div>
+        <TeacherView language={selectedLanguage} />
         <button className="change-role" onClick={() => setRole(null)}>
           Change Role
         </button>
@@ -83,6 +94,12 @@ function App() {
 
   return (
     <div className="App">
+      <div className="header-controls">
+        <LanguageSelector
+          selectedLanguage={selectedLanguage}
+          onLanguageChange={setSelectedLanguage}
+        />
+      </div>
       {selectedQuiz ? (
         <QuizAttempt 
           quizId={selectedQuiz} 

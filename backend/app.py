@@ -100,8 +100,36 @@ def get_quizzes():
     except Exception as e:
         return jsonify({'error': 'Failed to fetch quizzes'}), 500
 
-@app.route('/api/quiz/<int:quiz_id>', methods=['GET'])
+@app.route('/api/quiz/<int:quiz_id>', methods=['GET', 'DELETE'])
 def get_quiz(quiz_id):
+    if request.method == 'DELETE':
+        try:
+            quiz = Quiz.query.get_or_404(quiz_id)
+            
+            # Delete all related records first
+            for question in quiz.questions:
+                # Delete options for each question
+                Option.query.filter_by(question_id=question.id).delete()
+                
+                # Delete quiz answers for each question
+                QuizAnswer.query.filter_by(question_id=question.id).delete()
+                
+                # Delete the question
+                db.session.delete(question)
+            
+            # Delete quiz attempts
+            QuizAttempt.query.filter_by(quiz_id=quiz_id).delete()
+            
+            # Finally delete the quiz
+            db.session.delete(quiz)
+            db.session.commit()
+            
+            return jsonify({'message': 'Quiz deleted successfully'})
+        except Exception as e:
+            db.session.rollback()
+            return jsonify({'error': 'Failed to delete quiz'}), 500
+    
+    # Existing GET logic
     try:
         target_language = request.args.get('lang', 'en')
         quiz = Quiz.query.get_or_404(quiz_id)

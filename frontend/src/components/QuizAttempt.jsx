@@ -28,6 +28,7 @@ function QuizAttempt({ quizId, onBack, language, selectedControl }) {
 
   const handleNext = useCallback(() => {
     setError(null);
+    // First check if we can move to next question
     if (currentQuestionIndex < quiz?.questions.length - 1) {
       const currentQuestion = quiz.questions[currentQuestionIndex];
       if (!answers[currentQuestion.id]) {
@@ -157,11 +158,13 @@ function QuizAttempt({ quizId, onBack, language, selectedControl }) {
         }
         break;
       case 5:
-        // Next question or submit
+        // Next question only
         if (currentQuestionIndex < quiz.questions.length - 1) {
+          const currentQuestion = quiz.questions[currentQuestionIndex];
+          if (!answers[currentQuestion.id]) {
+            setSkippedQuestions(prev => new Set(prev).add(currentQuestion.id));
+          }
           setCurrentQuestionIndex(currentQuestionIndex + 1);
-        } else {
-          handleSubmit(new Event('submit'));
         }
         break;
     }
@@ -277,7 +280,7 @@ function QuizAttempt({ quizId, onBack, language, selectedControl }) {
       </div>
       
       <div className="quiz-progress">
-        <p>Question {currentQuestionIndex + 1} of {totalQuestions}</p>
+        <p>Question {currentQuestionIndex + 1} of {totalQuestions - 1}</p>
         <div className="progress-bar">
           <div 
             className="progress-fill" 

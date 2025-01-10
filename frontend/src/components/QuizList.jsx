@@ -4,16 +4,12 @@ function QuizList({ quizzes, onSelectQuiz, language }) {
   const [selectedControl, setSelectedControl] = useState(null);
 
   const handleQuizSelect = (quizId) => {
-    if (!selectedControl) {
-      alert("Please select a control method first");
-      return;
-    }
     onSelectQuiz(quizId, selectedControl);
   };
 
   const renderControlSelector = () => (
     <div className="control-selector">
-      <h3>Select Control Method</h3>
+      <h3>Select Control Method (Optional)</h3>
       <div className="control-buttons">
         <button 
           className={`control-button ${selectedControl === 'voice' ? 'active' : ''}`}
@@ -28,6 +24,14 @@ function QuizList({ quizzes, onSelectQuiz, language }) {
           👋 Gesture Control
         </button>
       </div>
+      {selectedControl && (
+        <button 
+          className="control-button clear-selection"
+          onClick={() => setSelectedControl(null)}
+        >
+          ❌ Clear Selection
+        </button>
+      )}
     </div>
   );
 
