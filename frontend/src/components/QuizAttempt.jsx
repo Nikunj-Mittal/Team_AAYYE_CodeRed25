@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import '../styles/rtl.css';
 import HandGestureControl from './HandGestureControl';
 import { useVoiceNavigation } from '../hooks/useVoiceControl';
+import { useNarrator } from '../hooks/useNarrator';
 
 function QuizAttempt({ quizId, onBack, language, selectedControl }) {
   const [quiz, setQuiz] = useState(null);
@@ -13,8 +14,14 @@ function QuizAttempt({ quizId, onBack, language, selectedControl }) {
   const [skippedQuestions, setSkippedQuestions] = useState(new Set());
   const [gestureControlEnabled, setGestureControlEnabled] = useState(false);
   const [voiceEnabled, setVoiceEnabled] = useState(false);
+  const [isNarrating, setIsNarrating] = useState(false);
+  const narratorEnabled = selectedControl === 'voice' || selectedControl === 'gesture';
 
-  // Voice control handlers
+  const { speak, cancel } = useNarrator({
+    enabled: true,
+    language
+  });
+
   const handleSelectOption = useCallback((optionIndex) => {
     const currentQuestion = quiz?.questions[currentQuestionIndex];
     if (currentQuestion && currentQuestion.options[optionIndex]) {
@@ -27,23 +34,20 @@ function QuizAttempt({ quizId, onBack, language, selectedControl }) {
   }, [quiz, currentQuestionIndex]);
 
   const handleNext = useCallback(() => {
+    cancel();
     setError(null);
-    // First check if we can move to next question
     if (currentQuestionIndex < quiz?.questions.length - 1) {
-      const currentQuestion = quiz.questions[currentQuestionIndex];
-      if (!answers[currentQuestion.id]) {
-        setSkippedQuestions(prev => new Set(prev).add(currentQuestion.id));
-      }
       setCurrentQuestionIndex(prev => prev + 1);
     }
-  }, [quiz, currentQuestionIndex, answers]);
+  }, [currentQuestionIndex, quiz, cancel]);
 
   const handlePrevious = useCallback(() => {
+    cancel();
     setError(null);
     if (currentQuestionIndex > 0) {
       setCurrentQuestionIndex(prev => prev - 1);
     }
-  }, [currentQuestionIndex]);
+  }, [currentQuestionIndex, cancel]);
 
   const handleSubmit = useCallback(async (e) => {
     if (e) e.preventDefault();
@@ -83,7 +87,24 @@ function QuizAttempt({ quizId, onBack, language, selectedControl }) {
     }
   }, [quizId, answers, skippedQuestions]);
 
-  // Initialize voice navigation
+  const narrateCurrentQuestion = useCallback(async () => {
+    if (!quiz?.questions[currentQuestionIndex]) return;
+
+    setIsNarrating(true);
+    
+    try {
+      const question = quiz.questions[currentQuestionIndex];
+      const fullText = `Question ${currentQuestionIndex + 1}: ${question.question}. 
+        ${question.options.map((opt, i) => `Option ${i + 1}: ${opt.text}`).join('. ')}`;
+      
+      await speak(fullText);
+    } catch (error) {
+      console.error('Narration error:', error);
+    } finally {
+      setIsNarrating(false);
+    }
+  }, [quiz, currentQuestionIndex, speak]);
+
   const { toggleVoiceRecognition } = useVoiceNavigation({
     onNext: handleNext,
     onPrevious: handlePrevious,
@@ -103,6 +124,14 @@ function QuizAttempt({ quizId, onBack, language, selectedControl }) {
   }, [toggleVoiceRecognition]);
 
   useEffect(() => {
+    narrateCurrentQuestion();
+  }, [currentQuestionIndex, narrateCurrentQuestion]);
+
+  useEffect(() => {
+    return () => cancel();
+  }, [cancel]);
+
+  useEffect(() => {
     fetchQuiz();
   }, [quizId, language]);
 
@@ -118,7 +147,6 @@ function QuizAttempt({ quizId, onBack, language, selectedControl }) {
       
       const data = await response.json();
       
-      // Validate quiz data
       if (!data.questions || !Array.isArray(data.questions) || data.questions.length === 0) {
         throw new Error('Invalid quiz format or empty quiz');
       }
@@ -139,7 +167,6 @@ function QuizAttempt({ quizId, onBack, language, selectedControl }) {
 
     switch (gesture) {
       case 0:
-        // Previous question
         if (currentQuestionIndex > 0) {
           setCurrentQuestionIndex(currentQuestionIndex - 1);
         }
@@ -148,7 +175,6 @@ function QuizAttempt({ quizId, onBack, language, selectedControl }) {
       case 2:
       case 3:
       case 4:
-        // Select option
         const currentQuestion = quiz.questions[currentQuestionIndex];
         if (currentQuestion && currentQuestion.options[gesture - 1]) {
           setAnswers({
@@ -158,7 +184,6 @@ function QuizAttempt({ quizId, onBack, language, selectedControl }) {
         }
         break;
       case 5:
-        // Next question only
         if (currentQuestionIndex < quiz.questions.length - 1) {
           const currentQuestion = quiz.questions[currentQuestionIndex];
           if (!answers[currentQuestion.id]) {
@@ -235,12 +260,10 @@ function QuizAttempt({ quizId, onBack, language, selectedControl }) {
     );
   };
 
-  // Loading state
   if (loading) {
     return <div className="loading">Loading...</div>;
   }
 
-  // Error state
   if (error) {
     return (
       <div className="error-container">
@@ -251,12 +274,10 @@ function QuizAttempt({ quizId, onBack, language, selectedControl }) {
     );
   }
 
-  // Quiz not loaded
   if (!quiz) {
     return <div>No quiz data available</div>;
   }
 
-  // Results view
   if (result) {
     return (
       <div className="quiz-result">
@@ -279,6 +300,15 @@ function QuizAttempt({ quizId, onBack, language, selectedControl }) {
         <h2>{quiz?.title}</h2>
       </div>
       
+      <button 
+        type="button"
+        onClick={narrateCurrentQuestion}
+        className="narration-button"
+        disabled={isNarrating}
+      >
+        {isNarrating ? '🔊 Reading...' : '🔊 Read Question'}
+      </button>
+
       <div className="quiz-progress">
         <p>Question {currentQuestionIndex + 1} of {totalQuestions - 1}</p>
         <div className="progress-bar">
@@ -309,7 +339,7 @@ function QuizAttempt({ quizId, onBack, language, selectedControl }) {
                       ...answers,
                       [currentQuestion.id]: e.target.value
                     });
-                    setError(null); // Clear error when answer is selected
+                    setError(null);
                   }}
                 />
                 <span className="option-text">{option.text}</span>
@@ -370,6 +400,12 @@ function QuizAttempt({ quizId, onBack, language, selectedControl }) {
       </form>
 
       {renderControls()}
+
+      {isNarrating && (
+        <div className="narration-indicator">
+          🔊 Reading question...
+        </div>
+      )}
     </div>
   );
 }
