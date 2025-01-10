@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import '../styles/rtl.css';
 import HandGestureControl from './HandGestureControl';
 import { useVoiceNavigation } from '../hooks/useVoiceControl';
+import useTextToSpeech from '../hooks/useTextToSpeech';
 
 function QuizAttempt({ quizId, onBack, language, selectedControl }) {
   const [quiz, setQuiz] = useState(null);
@@ -13,6 +14,29 @@ function QuizAttempt({ quizId, onBack, language, selectedControl }) {
   const [skippedQuestions, setSkippedQuestions] = useState(new Set());
   const [gestureControlEnabled, setGestureControlEnabled] = useState(false);
   const [voiceEnabled, setVoiceEnabled] = useState(false);
+  const [narrationEnabled, setNarrationEnabled] = useState(false);
+  const { speak, stop, isSpeaking } = useTextToSpeech();
+
+  // Narrate current question and options
+  const narrateCurrentQuestion = useCallback(() => {
+    if (!quiz || !narrationEnabled) return;
+    
+    const currentQuestion = quiz.questions[currentQuestionIndex];
+    if (!currentQuestion) return;
+
+    const questionText = `Question ${currentQuestionIndex + 1}: ${currentQuestion.question}`;
+    const optionsText = currentQuestion.options
+      .map((option, index) => `Option ${index + 1}: ${option.text}`)
+      .join('. ');
+
+    speak(`${questionText}. ${optionsText}`);
+  }, [quiz, currentQuestionIndex, narrationEnabled, speak]);
+
+  // Call narration when question changes
+  useEffect(() => {
+    narrateCurrentQuestion();
+    return () => stop(); // Cleanup: stop narration when component unmounts or question changes
+  }, [currentQuestionIndex, quiz, narrationEnabled]);
 
   // Voice control handlers
   const handleSelectOption = useCallback((optionIndex) => {
@@ -23,8 +47,14 @@ function QuizAttempt({ quizId, onBack, language, selectedControl }) {
         [currentQuestion.id]: currentQuestion.options[optionIndex].id.toString()
       }));
       setError(null);
+      
+      // Narrate the selected option
+      if (narrationEnabled) {
+        const selectedOption = currentQuestion.options[optionIndex];
+        speak(`Selected option ${optionIndex + 1}: ${selectedOption.text}`);
+      }
     }
-  }, [quiz, currentQuestionIndex]);
+  }, [quiz, currentQuestionIndex, narrationEnabled, speak]);
 
   const handleNext = useCallback(() => {
     setError(null);
@@ -34,15 +64,29 @@ function QuizAttempt({ quizId, onBack, language, selectedControl }) {
         setSkippedQuestions(prev => new Set(prev).add(currentQuestion.id));
       }
       setCurrentQuestionIndex(prev => prev + 1);
+      
+      // Narrate the next question after state update
+      setTimeout(() => {
+        if (narrationEnabled) {
+          narrateCurrentQuestion();
+        }
+      }, 100);
     }
-  }, [quiz, currentQuestionIndex, answers]);
+  }, [quiz, currentQuestionIndex, answers, narrationEnabled, narrateCurrentQuestion]);
 
   const handlePrevious = useCallback(() => {
     setError(null);
     if (currentQuestionIndex > 0) {
       setCurrentQuestionIndex(prev => prev - 1);
+      
+      // Narrate the previous question after state update
+      setTimeout(() => {
+        if (narrationEnabled) {
+          narrateCurrentQuestion();
+        }
+      }, 100);
     }
-  }, [currentQuestionIndex]);
+  }, [currentQuestionIndex, narrationEnabled, narrateCurrentQuestion]);
 
   const handleSubmit = useCallback(async (e) => {
     if (e) e.preventDefault();
@@ -140,7 +184,7 @@ function QuizAttempt({ quizId, onBack, language, selectedControl }) {
       case 0:
         // Previous question
         if (currentQuestionIndex > 0) {
-          setCurrentQuestionIndex(currentQuestionIndex - 1);
+          handlePrevious();
         }
         break;
       case 1:
@@ -150,16 +194,13 @@ function QuizAttempt({ quizId, onBack, language, selectedControl }) {
         // Select option
         const currentQuestion = quiz.questions[currentQuestionIndex];
         if (currentQuestion && currentQuestion.options[gesture - 1]) {
-          setAnswers({
-            ...answers,
-            [currentQuestion.id]: currentQuestion.options[gesture - 1].id.toString()
-          });
+          handleSelectOption(gesture - 1);
         }
         break;
       case 5:
         // Next question or submit
         if (currentQuestionIndex < quiz.questions.length - 1) {
-          setCurrentQuestionIndex(currentQuestionIndex + 1);
+          handleNext();
         } else {
           handleSubmit(new Event('submit'));
         }
@@ -167,9 +208,46 @@ function QuizAttempt({ quizId, onBack, language, selectedControl }) {
     }
   };
 
+  useEffect(() => {
+    // Enable narration if either voice or gesture control is enabled
+    if (voiceEnabled || gestureControlEnabled) {
+      setNarrationEnabled(true);
+    }
+  }, [voiceEnabled, gestureControlEnabled]);
+
+  // Add effect to narrate when quiz is first loaded
+  useEffect(() => {
+    if (quiz && narrationEnabled) {
+      narrateCurrentQuestion();
+    }
+  }, [quiz, narrationEnabled]);
+
+  // Add effect to narrate when narration is enabled
+  useEffect(() => {
+    if (narrationEnabled && quiz) {
+      narrateCurrentQuestion();
+    }
+  }, [narrationEnabled]);
+
   const renderControls = () => {
     return (
       <>
+        <div className="narration-control">
+          <button 
+            className={`narration-button ${narrationEnabled ? 'active' : ''}`}
+            onClick={() => setNarrationEnabled(prev => !prev)}
+            title={narrationEnabled ? 'Disable narration' : 'Enable narration'}
+            disabled={voiceEnabled || gestureControlEnabled}
+          >
+            {narrationEnabled ? '🔊 Narration ON' : '🔇 Narration OFF'}
+          </button>
+          {isSpeaking && <span className="speaking-indicator">Speaking...</span>}
+          {narrationEnabled && <button onClick={narrateCurrentQuestion}>Repeat Question</button>}
+          {(voiceEnabled || gestureControlEnabled) && (
+            <span className="narration-info">Narration is automatically enabled with controls</span>
+          )}
+        </div>
+
         {selectedControl === 'voice' && (
           <>
             <div className="voice-control-container">

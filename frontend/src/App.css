@@ -729,4 +729,53 @@ input[type="text"] {
 
 .quiz-list ul {
   margin-top: 20px;
+}
+
+.narration-control {
+  margin: 1rem 0;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.narration-button {
+  padding: 0.5rem 1rem;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  background-color: #f0f0f0;
+  transition: background-color 0.2s;
+}
+
+.narration-button.active {
+  background-color: #4CAF50;
+  color: white;
+}
+
+.speaking-indicator {
+  color: #4CAF50;
+  font-weight: bold;
+  animation: pulse 1.5s infinite;
+}
+
+@keyframes pulse {
+  0% { opacity: 1; }
+  50% { opacity: 0.5; }
+  100% { opacity: 1; }
+}
+
+.narration-button:disabled {
+  background-color: #e0e0e0;
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+.narration-button:disabled.active {
+  background-color: #4CAF50;
+}
+
+.narration-info {
+  color: #666;
+  font-style: italic;
+  font-size: 0.9rem;
 } 
